@@ -1,22 +1,22 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.js.test
 
+import com.intellij.openapi.util.text.StringUtil
 import org.jetbrains.kotlin.js.engine.ScriptEngine
 import org.jetbrains.kotlin.js.engine.ScriptEngineNashorn
 import org.jetbrains.kotlin.js.engine.ScriptEngineV8
-import org.jetbrains.kotlin.test.KotlinTestUtils
 import org.junit.Assert
 
 fun createScriptEngine(): ScriptEngine {
-    return ScriptEngineNashorn()
+    return if (java.lang.Boolean.getBoolean("kotlin.js.useNashorn")) ScriptEngineNashorn() else ScriptEngineV8()
 }
 
 fun ScriptEngine.overrideAsserter() {
-    evalVoid("this['kotlin-test'].kotlin.test.overrideAsserter_wbnzx$(this['kotlin-test'].kotlin.test.DefaultAsserter);")
+    eval("this['kotlin-test'].kotlin.test.overrideAsserter_wbnzx$(this['kotlin-test'].kotlin.test.DefaultAsserter);")
 }
 
 fun ScriptEngine.runTestFunction(
@@ -35,10 +35,9 @@ fun ScriptEngine.runTestFunction(
         script += ".$testPackageName"
     }
 
-    val testPackage = eval<Any>(script)
-    return callMethod<String?>(testPackage, testFunctionName).also {
-        releaseObject(testPackage)
-    }
+    script += ".$testFunctionName()"
+
+    return eval(script)
 }
 
 abstract class AbstractJsTestChecker {
@@ -51,7 +50,7 @@ abstract class AbstractJsTestChecker {
         withModuleSystem: Boolean
     ) {
         val actualResult = run(files, testModuleName, testPackageName, testFunctionName, withModuleSystem)
-        Assert.assertEquals(expectedResult, actualResult)
+        Assert.assertEquals(expectedResult, actualResult.toString().normalize())
     }
 
     private fun run(
@@ -69,8 +68,16 @@ abstract class AbstractJsTestChecker {
         run(files) { null }
     }
 
-    abstract fun checkStdout(files: List<String>, expectedResult: String)
+    fun checkStdout(files: List<String>, expectedResult: String) {
+        run(files) {
+            val actualResult = eval(GET_KOTLIN_OUTPUT)
+            Assert.assertEquals(expectedResult, actualResult.normalize())
+        }
+    }
 
+    private fun String.normalize() = StringUtil.convertLineSeparators(this)
+
+    // TODO change return type to `String?`?
     protected abstract fun run(files: List<String>, f: ScriptEngine.() -> Any?): Any?
 }
 
@@ -111,12 +118,6 @@ abstract class AbstractNashornJsTestChecker : AbstractJsTestChecker() {
         }
     }
 
-    override fun checkStdout(files: List<String>, expectedResult: String) {
-        run(files)
-        val actualResult = engine.eval<String>(GET_KOTLIN_OUTPUT)
-        Assert.assertEquals(expectedResult, actualResult)
-    }
-
     protected abstract val preloadedScripts: List<String>
 
     protected open fun createScriptEngineForTest(): ScriptEngineNashorn {
@@ -134,7 +135,7 @@ const val GET_KOTLIN_OUTPUT = "kotlin.kotlin.io.output.buffer;"
 object NashornJsTestChecker : AbstractNashornJsTestChecker() {
 
     override fun beforeRun() {
-        engine.evalVoid(SETUP_KOTLIN_OUTPUT)
+        engine.eval(SETUP_KOTLIN_OUTPUT)
     }
 
     override val preloadedScripts = listOf(
@@ -159,42 +160,27 @@ class NashornIrJsTestChecker : AbstractNashornJsTestChecker() {
     )
 }
 
-abstract class AbstractV8JsTestChecker : AbstractJsTestChecker() {
-    protected abstract val engine: ScriptEngineV8
+object V8JsTestChecker : AbstractJsTestChecker() {
+    private val engineTL = object : ThreadLocal<ScriptEngine>() {
+        override fun initialValue() =
+            ScriptEngineV8().apply {
+                listOf(
+                    BasicBoxTest.DIST_DIR_JS_PATH + "kotlin.js",
+                    BasicBoxTest.DIST_DIR_JS_PATH + "kotlin-test.js"
+                ).forEach { loadFile(it) }
 
-    override fun checkStdout(files: List<String>, expectedResult: String) {
-        run(files) {
-            val actualResult = engine.eval<String>(GET_KOTLIN_OUTPUT)
-            Assert.assertEquals(expectedResult, actualResult)
-        }
-    }
-}
+                overrideAsserter()
+            }
 
-object V8JsTestChecker : AbstractV8JsTestChecker() {
-    override val engine get() = tlsEngine.get()
-
-    private val tlsEngine = object : ThreadLocal<ScriptEngineV8>() {
-        override fun initialValue() = createV8Engine()
         override fun remove() {
             get().release()
         }
     }
 
-    private fun createV8Engine(): ScriptEngineV8 {
-        val v8 = ScriptEngineV8(KotlinTestUtils.tmpDirForReusableFolder("j2v8_library_path").path)
-
-        listOf(
-            BasicBoxTest.DIST_DIR_JS_PATH + "kotlin.js",
-            BasicBoxTest.DIST_DIR_JS_PATH + "kotlin-test.js"
-        ).forEach { v8.loadFile(it) }
-
-        v8.overrideAsserter()
-
-        return v8
-    }
+    private val engine get() = engineTL.get()
 
     override fun run(files: List<String>, f: ScriptEngine.() -> Any?): Any? {
-        engine.evalVoid(SETUP_KOTLIN_OUTPUT)
+        engine.eval(SETUP_KOTLIN_OUTPUT)
         return engine.runAndRestoreContext {
             files.forEach { loadFile(it) }
             f()
@@ -202,25 +188,22 @@ object V8JsTestChecker : AbstractV8JsTestChecker() {
     }
 }
 
-object V8IrJsTestChecker : AbstractV8JsTestChecker() {
-    override val engine get() = ScriptEngineV8(KotlinTestUtils.tmpDirForReusableFolder("j2v8_library_path").path)
+object V8IrJsTestChecker : AbstractJsTestChecker() {
+    private val engine = ScriptEngineV8()
 
     override fun run(files: List<String>, f: ScriptEngine.() -> Any?): Any? {
-
-        val v8 = engine
-
         val v = try {
-            files.forEach { v8.loadFile(it) }
-            v8.f()
+            files.forEach { engine.loadFile(it) }
+            engine.f()
         } catch (t: Throwable) {
             try {
-                v8.release()
+                engine.release()
             } finally {
                 // Don't mask the original exception
                 throw t
             }
         }
-        v8.release()
+        engine.release()
 
         return v
     }
