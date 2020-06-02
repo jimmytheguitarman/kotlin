@@ -1,5 +1,6 @@
 import com.moowork.gradle.node.NodeExtension
 import com.moowork.gradle.node.npm.NpmTask
+import com.moowork.gradle.node.npm.NpxTask
 import de.undercouch.gradle.tasks.download.Download
 import org.gradle.internal.os.OperatingSystem
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
@@ -15,6 +16,23 @@ plugins {
 node {
     download = true
     version = "10.16.2"
+}
+
+// It works same as running next command in terminal: npx jsvu@1.11.1 v8@8.1.307 --os=default
+val installV8 by tasks.register<NpxTask>("installV8") {
+    val jsvuVersion = "1.11.1"
+    val engineName = "v8"
+    val engineVersion = "8.1.307"
+    val engineFullName = "$engineName@$engineVersion"
+    val engineRunnerFile = "$engineName-$engineVersion" + if (OperatingSystem.current().isWindows) ".cmd" else ""
+
+    command = "jsvu@$jsvuVersion"
+    setArgs(listOf(engineFullName, "--os=default"))
+
+    val binaryFilePath = System.getProperty("user.home") + "/.jsvu/" + engineRunnerFile
+
+    // Don't do anything when engine runner already exist
+    outputs.upToDateWhen { File(binaryFilePath).exists() }
 }
 
 val antLauncherJar by configurations.creating
@@ -112,6 +130,7 @@ fun Test.setUpJsBoxTests(jsEnabled: Boolean, jsIrEnabled: Boolean) {
         systemProperty("kotlin.js.reduced.stdlib.path", "libraries/stdlib/js-ir-minimal-for-test/build/classes/kotlin/js/main")
         dependsOn(":kotlin-test:kotlin-test-js-ir:compileKotlinJs")
         systemProperty("kotlin.js.kotlin.test.path", "libraries/kotlin.test/js-ir/build/classes/kotlin/js/main")
+        dependsOn(installV8)
     }
 
     exclude("org/jetbrains/kotlin/js/test/wasm/semantics/*")
