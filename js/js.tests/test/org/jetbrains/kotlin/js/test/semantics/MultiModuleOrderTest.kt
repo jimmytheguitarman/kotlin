@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.js.test.semantics
 
-import com.eclipsesource.v8.V8ScriptException
 import org.jetbrains.kotlin.js.test.BasicBoxTest
 import java.io.File
 import javax.script.ScriptException
