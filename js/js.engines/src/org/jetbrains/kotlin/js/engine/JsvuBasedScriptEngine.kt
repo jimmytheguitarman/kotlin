@@ -7,10 +7,9 @@ package org.jetbrains.kotlin.js.engine
 
 private val isWindows = "win" in System.getProperty("os.name").toLowerCase()
 
-private fun getEngineExecutablePath(engineName: String, engineVersion: String? = null) =
+private fun getEngineExecutablePath(engineName: String, engineVersion: String) =
     System.getProperty("user.home") +
-            "/.jsvu/$engineName" +
-            (if (engineVersion.isNullOrBlank()) "-$engineVersion" else "") +
+            "/.jsvu/$engineName-$engineVersion" +
             if (isWindows) ".cmd" else ""
 
 sealed class JsvuBasedScriptEngine(
