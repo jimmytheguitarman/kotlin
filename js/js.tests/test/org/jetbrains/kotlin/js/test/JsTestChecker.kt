@@ -162,7 +162,7 @@ class NashornIrJsTestChecker : AbstractNashornJsTestChecker() {
 }
 
 object V8JsTestChecker : AbstractJsTestChecker() {
-    private val engineTL = object : ThreadLocal<ScriptEngine>() {
+    private val engineTL = object : ThreadLocal<ScriptEngineV8>() {
         override fun initialValue() =
             ScriptEngineV8().apply {
                 val preloadedScripts = listOf(
@@ -179,7 +179,7 @@ object V8JsTestChecker : AbstractJsTestChecker() {
         }
     }
 
-    private val engine get() = engineTL.get()
+    val engine get() = engineTL.get()
 
     override fun run(files: List<String>, f: ScriptEngine.() -> Any?): Any? {
         engine.eval(SETUP_KOTLIN_OUTPUT)
@@ -191,7 +191,7 @@ object V8JsTestChecker : AbstractJsTestChecker() {
 }
 
 object V8IrJsTestChecker : AbstractJsTestChecker() {
-    private val engine = ScriptEngineV8()
+    val engine = ScriptEngineV8()
 
     override fun run(files: List<String>, f: ScriptEngine.() -> Any?): Any? {
         val v = try {

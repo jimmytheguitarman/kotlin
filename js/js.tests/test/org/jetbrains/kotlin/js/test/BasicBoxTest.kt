@@ -63,6 +63,7 @@ import java.io.PrintStream
 import java.lang.Boolean.getBoolean
 import java.nio.charset.Charset
 import java.util.regex.Pattern
+import kotlin.concurrent.thread
 
 abstract class BasicBoxTest(
     protected val pathToTestDir: String,
@@ -94,7 +95,32 @@ abstract class BasicBoxTest(
     protected open val testChecker get() = if (runTestInNashorn) NashornJsTestChecker else V8JsTestChecker
 
     fun doTest(filePath: String) {
+        var startTime = System.currentTimeMillis()
+//        val t = thread {
+//            try {
+//                while (!Thread.interrupted()) {
+//                    val diff = System.currentTimeMillis() - startTime
+//                    if (diff > 10000) {
+//                        System.err.println("$$$ ALARM! $diff")
+//                        startTime = System.currentTimeMillis()
+//                        if (testChecker is V8JsTestChecker) {
+//                            System.err.println((testChecker as V8JsTestChecker).engine.stamps.joinToString("\n", prefix = "{{{\n", postfix = "}}}\n") { (m, t) -> "$t\t$m" })
+//                        }
+//                    }
+//                    Thread.sleep(1000)
+//                }
+//            } finally {
+////                println("$$$ done!")
+//            }
+//        }
         doTest(filePath, "OK", MainCallParameters.noCall())
+//        t.interrupt()
+//        t.join()
+        val diff = System.currentTimeMillis() - startTime
+        if (diff > 30000) {
+            System.err.println("$$$ ALARM! $diff")
+            System.err.println((testChecker as? V8IrJsTestChecker)?.engine?.stamps?.joinToString("\n", prefix = "{{{\n", postfix = "\n}}}") { (m, t) -> "$t\t$m" })
+        }
     }
 
     fun doTestWithCoroutinesPackageReplacement(filePath: String, coroutinesPackage: String) {

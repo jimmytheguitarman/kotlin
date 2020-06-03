@@ -17,24 +17,45 @@ abstract class ProcessBasedScriptEngine(
     private var process: Process? = null
     private val buffer = ByteArray(1024)
 
+    val stamps = mutableListOf<Pair<String, Long>>()
+
+    var last = 0L
+
+    fun stamp(m: String) {
+        val diff = System.currentTimeMillis() - last
+        stamps.add(m to diff)
+        last = System.currentTimeMillis()
+    }
+
     override fun eval(script: String): String {
+        stamp("start eval")
         val vm = getOrCreateProcess()
+        stamp("got vm")
 
         val stdin = vm.outputStream
         val stdout = vm.inputStream
         val stderr = vm.errorStream
 
+        if (!vm.isAlive) {
+            println("$$$ ALARM: process is not alive")
+        }
+
         val writer = stdin.writer()
         writer.write(StringUtil.convertLineSeparators(script, "\\n") + "\n")
         writer.flush()
+
+        stamp("sent message")
 
         val out = StringBuilder()
 
         while (vm.isAlive) {
             val n = stdout.available()
             if (n == 0) continue
+            stamp("have message")
 
             val count = stdout.read(buffer)
+
+            stamp("got message")
 
             val s = String(buffer, 0, count)
             out.append(s)
@@ -42,7 +63,10 @@ abstract class ProcessBasedScriptEngine(
             if (out.endsWith(END_MARKER)) break
         }
 
+        stamp("finish reading")
+
         if (stderr.available() > 0) {
+            stamp("reading stderr")
             val err = StringBuilder()
 
             while (vm.isAlive && stderr.available() > 0) {
@@ -50,12 +74,18 @@ abstract class ProcessBasedScriptEngine(
                 val s = String(buffer, 0, count)
                 err.append(s)
                 // TODO check and remove
+                if (count <= 0 && stderr.available() > 0) {
+                    println("$$$ AAA")
+                }
 //                if (count <= 0) break
             }
+
+            stamp("finish reading stderr")
 
             error("ERROR:\n$err\nOUTPUT:\n$out")
         }
 
+        stamp("end eval")
         return out.removeSuffix(END_MARKER).removeSuffix(LINE_SEPARATOR).toString()
     }
 
