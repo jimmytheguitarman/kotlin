@@ -32,6 +32,7 @@ import org.jetbrains.kotlin.js.config.*
 import org.jetbrains.kotlin.js.dce.DeadCodeElimination
 import org.jetbrains.kotlin.js.dce.InputFile
 import org.jetbrains.kotlin.js.dce.InputResource
+import org.jetbrains.kotlin.js.engine.loadFiles
 import org.jetbrains.kotlin.js.facade.*
 import org.jetbrains.kotlin.js.parser.parse
 import org.jetbrains.kotlin.js.parser.sourcemaps.SourceMapError
@@ -847,7 +848,7 @@ abstract class BasicBoxTest(
         runList += allJsFiles.map { filesToMinify[it]?.outputPath ?: it }
 
         val result = engineForMinifier.runAndRestoreContext {
-            runList.forEach(this::loadFile)
+            loadFiles(runList)
             overrideAsserter()
             eval(SETUP_KOTLIN_OUTPUT)
             runTestFunction(testModuleName, testPackage, testFunction, withModuleSystem)

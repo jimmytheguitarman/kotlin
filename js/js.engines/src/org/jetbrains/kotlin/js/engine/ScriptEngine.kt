@@ -18,3 +18,7 @@ interface ScriptEngine {
 interface ScriptEngineWithTypedResult : ScriptEngine {
     fun <R> evalWithTypedResult(script: String): R
 }
+
+fun ScriptEngine.loadFiles(files: List<String>) {
+    files.forEach { loadFile(it) }
+}

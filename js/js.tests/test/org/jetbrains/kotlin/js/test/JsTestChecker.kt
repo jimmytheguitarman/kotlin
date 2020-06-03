@@ -9,6 +9,7 @@ import com.intellij.openapi.util.text.StringUtil
 import org.jetbrains.kotlin.js.engine.ScriptEngine
 import org.jetbrains.kotlin.js.engine.ScriptEngineNashorn
 import org.jetbrains.kotlin.js.engine.ScriptEngineV8
+import org.jetbrains.kotlin.js.engine.loadFiles
 import org.junit.Assert
 
 fun createScriptEngine(): ScriptEngine {
@@ -113,7 +114,7 @@ abstract class AbstractNashornJsTestChecker : AbstractJsTestChecker() {
         beforeRun()
 
         return engine.runAndRestoreContext {
-            files.forEach { loadFile(it) }
+            loadFiles(files)
             f()
         }
     }
@@ -123,7 +124,7 @@ abstract class AbstractNashornJsTestChecker : AbstractJsTestChecker() {
     protected open fun createScriptEngineForTest(): ScriptEngineNashorn {
         val engine = ScriptEngineNashorn()
 
-        preloadedScripts.forEach { engine.loadFile(it) }
+        engine.loadFiles(preloadedScripts)
 
         return engine
     }
@@ -164,10 +165,11 @@ object V8JsTestChecker : AbstractJsTestChecker() {
     private val engineTL = object : ThreadLocal<ScriptEngine>() {
         override fun initialValue() =
             ScriptEngineV8().apply {
-                listOf(
+                val preloadedScripts = listOf(
                     BasicBoxTest.DIST_DIR_JS_PATH + "kotlin.js",
                     BasicBoxTest.DIST_DIR_JS_PATH + "kotlin-test.js"
-                ).forEach { loadFile(it) }
+                )
+                loadFiles(preloadedScripts)
 
                 overrideAsserter()
             }
@@ -182,7 +184,7 @@ object V8JsTestChecker : AbstractJsTestChecker() {
     override fun run(files: List<String>, f: ScriptEngine.() -> Any?): Any? {
         engine.eval(SETUP_KOTLIN_OUTPUT)
         return engine.runAndRestoreContext {
-            files.forEach { loadFile(it) }
+            loadFiles(files)
             f()
         }
     }
@@ -193,7 +195,7 @@ object V8IrJsTestChecker : AbstractJsTestChecker() {
 
     override fun run(files: List<String>, f: ScriptEngine.() -> Any?): Any? {
         val v = try {
-            files.forEach { engine.loadFile(it) }
+            engine.loadFiles(files)
             engine.f()
         } catch (t: Throwable) {
             try {
