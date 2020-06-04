@@ -99,11 +99,11 @@ abstract class ProcessBasedScriptEngine(
     }
 
     override fun saveState() {
-        eval("saveState();")
+        eval("!saveState")
     }
 
     override fun restoreState() {
-        eval("restoreState();")
+        eval("!restoreState")
     }
 
     private fun getOrCreateProcess(): Process {

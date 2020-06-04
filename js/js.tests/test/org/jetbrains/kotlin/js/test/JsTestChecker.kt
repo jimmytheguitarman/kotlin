@@ -191,22 +191,20 @@ object V8JsTestChecker : AbstractJsTestChecker() {
 }
 
 object V8IrJsTestChecker : AbstractJsTestChecker() {
-    val engine = ScriptEngineV8()
+    private val engineTL = object : ThreadLocal<ScriptEngineV8>() {
+        override fun initialValue() = ScriptEngineV8()
+        override fun remove() {
+            get().release()
+        }
+    }
+
+    // TODO remove
+    val engine get() = engineTL.get()
 
     override fun run(files: List<String>, f: ScriptEngine.() -> Any?): Any? {
-        val v = try {
-            engine.loadFiles(files)
-            engine.f()
-        } catch (t: Throwable) {
-            try {
-                engine.release()
-            } finally {
-                // Don't mask the original exception
-                throw t
-            }
+        return engineTL.get().runAndRestoreContext {
+            loadFiles(files)
+            f()
         }
-        engine.release()
-
-        return v
     }
 }
