@@ -94,16 +94,20 @@ abstract class ProcessBasedScriptEngine(
     }
 
     override fun reset() {
-        process?.destroy()
-        process = null
+        eval("!reset")
     }
 
     override fun saveGlobalState() {
-        eval("!saveState")
+        eval("!saveGlobalState")
     }
 
     override fun restoreGlobalState() {
-        eval("!restoreState")
+        eval("!restoreGlobalState")
+    }
+
+    fun destroy() {
+        process?.destroy()
+        process = null
     }
 
     private fun getOrCreateProcess(): Process {

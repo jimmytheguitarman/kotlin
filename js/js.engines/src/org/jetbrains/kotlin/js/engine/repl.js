@@ -31,47 +31,72 @@ https://trac.webkit.org/wiki/JSC
 https://github.com/WebKit/webkit/blob/master/Source/JavaScriptCore/jsc.cpp
 */
 
-(function () {
-    let activeRealmIndex = 0;
+/**
+ * @type {number}
+ */
+let currentRealmIndex = Realm.current();
 
-    function saveState() {
-        if (activeRealmIndex > 0) throw Error("Could not save more than one state, activeRealmIndex = " + activeRealmIndex);
+function resetRealm() {
+    if (currentRealmIndex !== 0) Realm.dispose(currentRealmIndex);
+    currentRealmIndex = Realm.createAllowCrossRealmAccess()
+}
 
-        activeRealmIndex = Realm.createAllowCrossRealmAccess();
+/**
+ * @type {?Map<string, ?any>}
+ */
+let globalState = null;
 
-        const newGlobal = Realm.global(activeRealmIndex);
-        for (const k of Object.getOwnPropertyNames(this)) {
-            newGlobal[k] = this[k]
+function saveGlobalState() {
+    globalState = new Map();
+    const currentGlobal = Realm.global(currentRealmIndex)
+    for (const k in currentGlobal) {
+        globalState.set(k, currentGlobal[k]);
+    }
+
+    console.log(Array.from(globalState.entries()))
+}
+
+function restoreGlobalState() {
+    if (globalState === null) throw Error("There is no saved state!")
+
+    const currentGlobal = Realm.global(currentRealmIndex)
+
+    console.log(Array.from(globalState.entries()))
+
+    for (const k in currentGlobal) {
+        let prev = globalState.get(k);
+        if (prev !== currentGlobal[k]) {
+            currentGlobal[k] = prev;
         }
     }
+    globalState = null;
+}
 
-    function restoreState() {
-        if (activeRealmIndex <= 0) throw Error("Could not restore unsaved state, activeRealmIndex = " + activeRealmIndex);
+// To prevent accessing to current global state
+resetRealm();
 
-        Realm.dispose(activeRealmIndex);
-        activeRealmIndex = 0;
-    }
+// noinspection InfiniteLoopJS
+while (true) {
+    let code = readline().replace(/\\n/g, '\n');
 
-    // noinspection InfiniteLoopJS
-    while (true) {
-        let code = readline().replace(/\\n/g, '\n');
-
-        try {
-            switch (code) {
-                case "!saveState":
-                    saveState();
-                    break;
-                case "!restoreState":
-                    restoreState();
-                    break;
-                default:
-                    print(Realm.eval(activeRealmIndex, code));
-            }
-        } catch(e) {
-            printErr(e.stack != null ? e.stack : e.toString());
-            printErr('\nCODE:\n' + code);
+    try {
+        switch (code) {
+            case "!reset":
+                resetRealm()
+                break;
+            case "!saveGlobalState":
+                saveGlobalState();
+                break;
+            case "!restoreGlobalState":
+                restoreGlobalState();
+                break;
+            default:
+                print(Realm.eval(currentRealmIndex, code));
         }
-
-        print('<END>');
+    } catch(e) {
+        printErr(e.stack != null ? e.stack : e.toString());
+        printErr('\nCODE:\n' + code);
     }
-})()
+
+    print('<END>');
+}

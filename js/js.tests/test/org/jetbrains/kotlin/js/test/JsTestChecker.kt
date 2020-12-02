@@ -175,7 +175,7 @@ object V8JsTestChecker : AbstractJsTestChecker() {
             }
 
         override fun remove() {
-            get().reset()
+            get().destroy()
         }
     }
 
@@ -194,7 +194,7 @@ object V8IrJsTestChecker : AbstractJsTestChecker() {
     private val engineTL = object : ThreadLocal<ScriptEngineV8>() {
         override fun initialValue() = ScriptEngineV8()
         override fun remove() {
-            get().reset()
+            get().destroy()
         }
     }
 
@@ -202,9 +202,12 @@ object V8IrJsTestChecker : AbstractJsTestChecker() {
     val engine get() = engineTL.get()
 
     override fun run(files: List<String>, f: ScriptEngine.() -> Any?): Any? {
-        return engineTL.get().runAndRestoreContext {
-            loadFiles(files)
-            f()
+        val engine = engineTL.get()
+        return try {
+            engine.loadFiles(files)
+            engine.f()
+        } finally {
+            engine.reset()
         }
     }
 }
