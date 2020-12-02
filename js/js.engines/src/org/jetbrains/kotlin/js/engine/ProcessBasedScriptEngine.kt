@@ -93,16 +93,16 @@ abstract class ProcessBasedScriptEngine(
         eval("load('${path.replace('\\', '/')}');")
     }
 
-    override fun release() {
+    override fun reset() {
         process?.destroy()
         process = null
     }
 
-    override fun saveState() {
+    override fun saveGlobalState() {
         eval("!saveState")
     }
 
-    override fun restoreState() {
+    override fun restoreGlobalState() {
         eval("!restoreState")
     }
 

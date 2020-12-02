@@ -25,15 +25,17 @@ class ScriptEngineNashorn : ScriptEngineWithTypedResult {
         eval("load('${path.replace('\\', '/')}');")
     }
 
-    override fun release() {}
+    override fun reset() {
+        throw UnsupportedOperationException()
+    }
 
     private fun getGlobalState(): MutableMap<String, Any?> = evalWithTypedResult("this")
 
-    override fun saveState() {
+    override fun saveGlobalState() {
         savedState = getGlobalState().toMap()
     }
 
-    override fun restoreState() {
+    override fun restoreGlobalState() {
         val globalState = getGlobalState()
         val originalState = savedState!!
         for (key in globalState.keys) {

@@ -33,7 +33,7 @@ abstract class JsCompilationState(
 
 class JsEvaluationState(lock: ReentrantReadWriteLock, val engine: ScriptEngineWithTypedResult) : JsState(lock) {
     override fun dispose() {
-        engine.release()
+        engine.reset()
     }
 }
 

@@ -7,12 +7,28 @@ package org.jetbrains.kotlin.js.engine
 
 interface ScriptEngine {
     fun eval(script: String): String
+
     // TODO Add API to load few files at once
     fun loadFile(path: String)
-    fun release()
 
-    fun saveState()
-    fun restoreState()
+    /**
+     * Performs truly reset of the engine state.
+     * */
+    fun reset()
+
+    /**
+     * Saves current state of global object.
+     *
+     * See also [restoreGlobalState]
+     */
+    fun saveGlobalState()
+
+    /**
+     * Restores global object to the last saved state.
+     *
+     * See also [saveGlobalState]
+     */
+    fun restoreGlobalState()
 }
 
 interface ScriptEngineWithTypedResult : ScriptEngine {

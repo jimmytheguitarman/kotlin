@@ -40,7 +40,7 @@ fun run(id: Int) {
             t = System.currentTimeMillis()
         }
 
-        vm.release()
+        vm.reset()
         i++
     }
 }

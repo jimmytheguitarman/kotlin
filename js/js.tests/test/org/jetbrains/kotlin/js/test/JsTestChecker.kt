@@ -84,10 +84,10 @@ abstract class AbstractJsTestChecker {
 
 fun ScriptEngine.runAndRestoreContext(f: ScriptEngine.() -> Any?): Any? {
     return try {
-        saveState()
+        saveGlobalState()
         f()
     } finally {
-        restoreState()
+        restoreGlobalState()
     }
 }
 
@@ -175,7 +175,7 @@ object V8JsTestChecker : AbstractJsTestChecker() {
             }
 
         override fun remove() {
-            get().release()
+            get().reset()
         }
     }
 
@@ -194,7 +194,7 @@ object V8IrJsTestChecker : AbstractJsTestChecker() {
     private val engineTL = object : ThreadLocal<ScriptEngineV8>() {
         override fun initialValue() = ScriptEngineV8()
         override fun remove() {
-            get().release()
+            get().reset()
         }
     }
 
