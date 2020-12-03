@@ -19,7 +19,7 @@ sealed class JsvuBasedScriptEngine(
     engineVersion: String
 ) : ProcessBasedScriptEngine(getEngineExecutablePath(engineName, engineVersion))
 
-class ScriptEngineV8 : JsvuBasedScriptEngine("v8", "8.1.307")
+class ScriptEngineV8 : ProcessBasedScriptEngine(System.getProperty("javascript.engine.path.V8"))
 
 fun run(id: Int) {
     val vm = ScriptEngineV8()
